@@ -1,65 +1,128 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import Header from "@/components/Header";
+import ModeToggle from "@/components/ModeToggle";
+import VideoUpload from "@/components/VideoUpload";
+import LiveCamera from "@/components/LiveCamera";
+import ControlPanel from "@/components/ControlPanel";
+import StatsSidebar from "@/components/StatsSidebar";
+
+const queryClient = new QueryClient();
+
+interface Track {
+  id: number;
+  bbox: [number, number, number, number];
+  label: string;
+  conf: number;
+  trail?: Array<{ x: number; y: number }>;
+}
 
 export default function Home() {
+  const [mode, setMode] = useState<"upload" | "live">("upload");
+  const [showTrackHistory, setShowTrackHistory] = useState(true);
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.5);
+  const [iouThreshold, setIouThreshold] = useState(0.45);
+  const [modelSize, setModelSize] = useState("small");
+
+  // Simulated tracking data
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [stats, setStats] = useState({
+    totalTracked: 0,
+    currentFps: 0,
+    activeIds: [] as number[],
+    processingTime: 0,
+  });
+
+  // Simulate WebSocket data for demo
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const numTracks = Math.floor(Math.random() * 5) + 1;
+      const newTracks: Track[] = Array.from({ length: numTracks }, (_, i) => ({
+        id: i + 1,
+        bbox: [
+          100 + Math.random() * 400,
+          100 + Math.random() * 200,
+          300 + Math.random() * 400,
+          300 + Math.random() * 200,
+        ] as [number, number, number, number],
+        label: ["person", "car", "bicycle", "dog", "cat"][Math.floor(Math.random() * 5)],
+        conf: 0.7 + Math.random() * 0.3,
+      }));
+
+      setTracks(newTracks);
+      setStats({
+        totalTracked: Math.floor(Math.random() * 500) + 100,
+        currentFps: 25 + Math.random() * 10,
+        activeIds: newTracks.map((t) => t.id),
+        processingTime: 15 + Math.random() * 20,
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleVideoUploaded = (file: File) => {
+    console.log("Video uploaded:", file.name);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <div className="min-h-screen bg-background cyber-grid">
+        <Header />
+
+        <main className="container mx-auto px-4 py-6">
+          {/* Mode Toggle */}
+          <div className="flex justify-center mb-6">
+            <ModeToggle mode={mode} onModeChange={setMode} />
+          </div>
+
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Main View */}
+            <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+              {mode === "upload" ? (
+                <VideoUpload onVideoUploaded={handleVideoUploaded} />
+              ) : (
+                <LiveCamera
+                  tracks={tracks}
+                  showTrackHistory={showTrackHistory}
+                />
+              )}
+            </div>
+
+            {/* Sidebar */}
+            <div className="lg:col-span-5 xl:col-span-4 grid grid-cols-1 xl:grid-cols-1 gap-4 content-start">
+              <ControlPanel
+                showTrackHistory={showTrackHistory}
+                onShowTrackHistoryChange={setShowTrackHistory}
+                confidenceThreshold={confidenceThreshold}
+                onConfidenceThresholdChange={setConfidenceThreshold}
+                iouThreshold={iouThreshold}
+                onIouThresholdChange={setIouThreshold}
+                modelSize={modelSize}
+                onModelSizeChange={setModelSize}
+              />
+
+              <StatsSidebar
+                totalTracked={stats.totalTracked}
+                currentFps={stats.currentFps}
+                activeIds={stats.activeIds}
+                processingTime={stats.processingTime}
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <footer className="mt-12 text-center text-sm text-muted-foreground font-body">
+            <p>NEXUS TRACKER v2.0.4 • Real-time Object Detection System</p>
+            <p className="mt-1 text-xs">
+              Powered by YOLOv8 • WebSocket Connection Ready
+            </p>
+          </footer>
+        </main>
+      </div>
+    </QueryClientProvider>
   );
 }
